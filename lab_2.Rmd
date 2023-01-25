@@ -1,0 +1,196 @@
+---
+title: "Lab 2"
+author: "Vanessa Dinh"
+date: "1/25/23"
+output: html_document
+---
+
+```{r}
+library(deSolve)
+library(tidyverse)
+```
+
+```{r}
+#simple ODE (Ordinary Differential Equations)
+#don't put dx
+exfunc_1 = function(x, y, parms){
+  dy = x^2
+  list(dy)
+}
+
+#doing the integration
+xs = seq(0, 10, by = 0.1)
+state = c(y = 0)
+out = ode(y = state, times = xs, func = exfunc_1, parms = NULL)
+
+y_true = 1/3*xs^3
+
+#check if the ode is working
+#need to turn out into a data frame
+out = as.data.frame(out)
+
+out %>% 
+  ggplot(aes(x = time, y = y)) +
+  geom_point(color = "red")
+```
+
+```{r}
+head(out, 3)
+tail(out, 6)
+```
+
+```{r}
+out[, 2]
+out[, "y"]
+
+out[3,]
+
+out[3, 2]
+
+out[out[,'time']==3, ]
+out[out[,'time'] >=3 & out[,'time'] < 4, ] 
+out[out[,'y'] > 10 & out[,'y'] < 11, ]  # get value within a specific range
+
+```
+# SIR Model
+
+```{r}
+#Step 1: code SIR Model
+
+SIR = function(t, state, parameters){
+  with(as.list(c(state, parameters)),{
+    #rate of change
+    dS = -beta*S*I/N;
+    dI = beta*S*I/N - gamma*I;
+    
+    #optional: also compute the cumulative number of infection
+    dcumI = beta*S*I/N
+    
+    #return the rate of change
+    
+    list(c(dS, dI, dcumI))
+  })
+}
+```
+
+```{r}
+#Step 2: specify initial conditions/parameters
+
+N = 1e5; #population size
+I0 = 10; #initial Number of Infectious people
+S0 = N-I0; #initial number of Susceptible people
+state = c(S = S0, I = I0, cumI = I0); #store the inital conditions S and I together
+parameters = c(beta = 0.5, gamma = 0.3); #store the model parameters, unit: per day
+
+times = seq(1, 100, by = 1) # set simulation time steps: 1 to 100 days here
+```
+
+```{r}
+#Step 3: call the ode function to generate simulation
+
+sim = ode(y = state, times = times, func = SIR, parms = parameters)
+
+sim_df = as.data.frame(sim)
+
+sim_df %>% 
+  ggplot(aes(x = time, y = S)) +
+  geom_point(color = "red")
+```
+
+```{r}
+#Part 1:
+#LQ1: Based on the simulation, how many people are susceptible on Day 50? How many people are susceptible at the end of the simulation?
+
+sim[sim[,'time']==50]
+
+colnames(sim)
+
+#45209 people are susceptible on Day 50
+
+tail(sim, 1)
+
+#32431 people are susceptible on Day 100 (end of simulation)
+```
+
+```{r}
+#LQ2: Based on the sim, how many people are infectious on Day 50? How many people are infectious at the end of the simulation?
+
+#7165 people are infectious on Day 50
+
+#12 people are infectious at the end of the simulation
+
+```
+
+```{r}
+#LQ3: Based on the sim, how many people have been infected by Day 50? How many people have been infected by the end of the simulation?
+
+#54791 people are infected by Day 50
+
+#67569 people are infected by the end of the simulation
+
+```
+
+
+```{r}
+#LQ4: Plot the outputs I and S for each day during the simulated time period
+
+sim_df %>% 
+  ggplot(aes(x = time, y = S)) +
+  geom_point() +
+  geom_point(aes(x = time, y = I)) 
+```
+
+```{r}
+#Part 2: Convert simulation numbers to fraction relative to population size
+
+#LQ5: Based on sim, what is the population susceptibility (%S) at the end of the sim? What percentage of the pop are infectious at the end of the sim? Percentage of pop infected by end of sim?
+
+sim_df_perc =
+  sim_df %>% 
+   mutate(
+     perc_S = sim[,"S"]/N * 100,
+      perc_I = sim[,"I"]/N * 100,
+      perc_cumI = sim[,"cumI"]/N * 100
+)
+
+tail(sim_df_perc, 1)
+
+#perc_S at end of sim is 32.4%
+#perc_I at end of sim is 0.01%
+#perc_cumI at end of sim is 67.6%
+```
+
+```{r}
+#LQ6: Plot outputs %I and %S for each day during simulated time period
+
+sim_df_perc %>% 
+  ggplot(aes(x = time, y = perc_S)) +
+  geom_point() +
+  geom_point(aes(x = time, y = perc_I))
+
+```
+
+```{r}
+#Part 3: Simple Analyses of model outputs
+
+#Aggregate the simulated daily outputs to weekly outputs
+
+#Model code to aggregate simulated daily outputs to weekly outputs
+
+num_week = ceiling(length(times) / 7)
+tmstep = 7
+out_weekly = matrix(0, num_week, ncol(sim))
+
+out_weekly_df = as.data.frame(out_weekly)
+
+out_weekly_df %>% 
+  rename(week = V1,
+         num_S = V2,
+         num_I = V3,
+         num_new_I = V4)
+
+out_weekly_df[, "num_S"] = c(S0,
+                             sim[seq(4, length.out = num_week - 1, by = tmstep),
+                                 'S'])
+```
+
