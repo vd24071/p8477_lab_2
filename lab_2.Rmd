@@ -136,8 +136,11 @@ tail(sim, 1)
 
 sim_df %>% 
   ggplot(aes(x = time, y = S)) +
-  geom_point() +
-  geom_point(aes(x = time, y = I)) 
+  geom_point(aes(color = "Susceptible")) +
+  geom_point(aes(x = time, y = I, color = "Infectious")) +
+  ylab("Number of People") +
+  xlab("Day") +
+  ggtitle("Infectious and Susceptible People by Day") 
 ```
 
 ```{r}
@@ -165,9 +168,11 @@ tail(sim_df_perc, 1)
 
 sim_df_perc %>% 
   ggplot(aes(x = time, y = perc_S)) +
-  geom_point() +
-  geom_point(aes(x = time, y = perc_I))
-
+  geom_point(aes(color = "Susceptible")) +
+  geom_point(aes(x = time, y = perc_I, color = "Infectious")) +
+  ylab("Percentage of Population") +
+  xlab("Day") +
+  ggtitle("Infectious and Susceptible Percentage of Population by Day") 
 ```
 
 ```{r}
@@ -179,18 +184,56 @@ sim_df_perc %>%
 
 num_week = ceiling(length(times) / 7)
 tmstep = 7
-out_weekly = matrix(0, num_week, ncol(sim))
+out_weekly = matrix(0, num_week, ncol(sim_df))
 
 out_weekly_df = as.data.frame(out_weekly)
 
+out_weekly_df = 
 out_weekly_df %>% 
   rename(week = V1,
-         num_S = V2,
-         num_I = V3,
-         num_new_I = V4)
+         num_s = V2,
+         num_i = V3,
+         num_new_i = V4) %>% 
+  mutate(week = 0: (num_week - 1))
 
-out_weekly_df[, "num_S"] = c(S0,
-                             sim[seq(4, length.out = num_week - 1, by = tmstep),
-                                 'S'])
+#adding columns in from sim_df, mid-week estimates for num_S and num_i
+out_weekly_df =
+  out_weekly_df %>% 
+  mutate(
+    num_s = c(S0, sim_df[seq(4, length.out = num_week - 1, by = tmstep), 'S']),
+    num_i = c(I0, sim_df[seq(4, length.out = num_week - 1, by = tmstep), 'I']),
+    num_new_i = c(0, (sim_df[seq(tmstep+1, length.out = num_week - 1, by = tmstep), 'cumI'] - 
+                        sim_df[seq(1, length.out = num_week - 1, by = tmstep), 'cumI']))
+)
+
+out_weekly_df[8, "num_i"]
+
+```
+```{r}
+
+out_weekly_df %>% 
+  ggplot(aes(week, num_s)) +
+  geom_line(color = "blue") +
+  xlab("Week") +
+  ylab("Number of Susceptible People") +
+  ggtitle("Susceptible Population at Mid-Week by Week")
+```
+
+```{r}
+out_weekly_df %>% 
+  ggplot(aes(week, num_i)) +
+  geom_line(color = "red") +
+  xlab("Week") +
+  ylab("Number of Infectious People") +
+  ggtitle("Infectious Population at Mid-Week by Week")
+```
+
+```{r}
+out_weekly_df %>% 
+  ggplot(aes(week, num_new_i)) +
+  geom_line(color = "green") +
+  xlab("Week") +
+  ylab("Cumulative Number of Newly Infectious People") +
+  ggtitle("Cumulative Number of New Infections Among Population by Week")
 ```
 
